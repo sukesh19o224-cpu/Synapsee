@@ -3,9 +3,13 @@ import { Client, Account, Databases, Storage, Functions } from 'appwrite';
 // Initialize Appwrite client
 const client = new Client();
 
+// Use environment variables or fallback to hardcoded values
+const APPWRITE_ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'https://fra.cloud.appwrite.io/v1';
+const APPWRITE_PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '696ae54700106da1b1c3';
+
 client
-  .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || 'http://localhost/v1')
-  .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || 'synapse');
+  .setEndpoint(APPWRITE_ENDPOINT)
+  .setProject(APPWRITE_PROJECT_ID);
 
 // Export services
 export const account = new Account(client);
