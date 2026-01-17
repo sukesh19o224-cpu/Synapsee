@@ -1,6 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
+import { Query } from 'appwrite';
+import { databases, DATABASE_ID, COLLECTIONS } from '@/lib/appwrite';
 import { 
   Search, 
   Send, 
@@ -13,10 +16,10 @@ import {
 } from 'lucide-react';
 
 const suggestedQueries = [
-  "What were my best CV results last month?",
-  "Show all experiments with LiFePO4",
-  "Find EIS data with low charge transfer resistance",
-  "Compare diffusion coefficients across experiments",
+  "Cyclic Voltammetry",
+  "EIS",
+  "Battery",
+  "Electrode",
 ];
 
 export default function SearchPage() {
@@ -30,32 +33,34 @@ export default function SearchPage() {
     setIsSearching(true);
     setHasSearched(true);
     
-    // Simulate AI search
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    setResults([
-      {
+    try {
+      // Search experiments in Appwrite database
+      const response = await databases.listDocuments(
+        DATABASE_ID,
+        COLLECTIONS.EXPERIMENTS,
+        [Query.limit(20)]
+      );
+      
+      // Filter results client-side for flexible matching
+      const filtered = response.documents.filter(doc => 
+        doc.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        doc.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        doc.type?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      
+      setResults(filtered.map(doc => ({
+        id: doc.$id,
         type: 'experiment',
-        title: 'CV Study - Li-ion Battery Cathode',
-        excerpt: 'Cyclic voltammetry analysis showed excellent reversibility with peak separation of 59 mV...',
-        date: '2 days ago',
-        relevance: 0.95,
-      },
-      {
-        type: 'analysis',
-        title: 'EIS Analysis - Solid Electrolyte',
-        excerpt: 'The impedance data indicates a charge transfer resistance of 45 Ω, suggesting good ionic conductivity...',
-        date: '1 week ago',
-        relevance: 0.87,
-      },
-      {
-        type: 'document',
-        title: 'Q4 Research Summary',
-        excerpt: 'Our experiments this quarter focused on improving the electrochemical performance of...',
-        date: '2 weeks ago',
-        relevance: 0.72,
-      },
-    ]);
+        title: doc.title,
+        excerpt: doc.description || `${doc.type} experiment`,
+        date: new Date(doc.createdAt).toLocaleDateString(),
+        experimentType: doc.type,
+      })));
+    } catch (error) {
+      console.error('Search failed:', error);
+      setResults([]);
+    }
+    
     setIsSearching(false);
   };
 

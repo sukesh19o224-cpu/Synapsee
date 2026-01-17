@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { ID } from 'appwrite';
+import { storage, BUCKETS } from '@/lib/appwrite';
 import { 
   FileText, 
   Plus, 
@@ -11,13 +13,15 @@ import {
   File,
   FileImage,
   MoreVertical,
-  Upload
+  Upload,
+  Loader2,
+  Download,
+  Trash2
 } from 'lucide-react';
 
-const documents: any[] = [];
-
-const getFileIcon = (type: string) => {
-  switch (type) {
+const getFileIcon = (name: string) => {
+  const ext = name.split('.').pop()?.toLowerCase() || '';
+  switch (ext) {
     case 'xlsx':
     case 'xls':
     case 'csv':
@@ -31,8 +35,9 @@ const getFileIcon = (type: string) => {
   }
 };
 
-const getFileColor = (type: string) => {
-  switch (type) {
+const getFileColor = (name: string) => {
+  const ext = name.split('.').pop()?.toLowerCase() || '';
+  switch (ext) {
     case 'xlsx':
     case 'xls':
       return 'text-green-400 bg-green-500/10';
@@ -50,24 +55,86 @@ const getFileColor = (type: string) => {
 
 export default function DocumentsPage() {
   const [searchQuery, setSearchQuery] = useState('');
-  const [view, setView] = useState<'grid' | 'list'>('grid');
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetchDocuments();
+  }, []);
+
+  const fetchDocuments = async () => {
+    try {
+      const response = await storage.listFiles(BUCKETS.DATA_FILES);
+      setDocuments(response.files);
+    } catch (error) {
+      console.log('Storage bucket not found - create data-files bucket in Appwrite');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    setIsUploading(true);
+    try {
+      await storage.createFile(BUCKETS.DATA_FILES, ID.unique(), file);
+      await fetchDocuments();
+    } catch (error) {
+      console.error('Upload failed:', error);
+      alert('Upload failed. Make sure you created data-files bucket in Appwrite.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDownload = (fileId: string, fileName: string) => {
+    const url = storage.getFileDownload(BUCKETS.DATA_FILES, fileId);
+    window.open(url.toString(), '_blank');
+  };
+
+  const handleDelete = async (fileId: string) => {
+    if (!confirm('Delete this file?')) return;
+    try {
+      await storage.deleteFile(BUCKETS.DATA_FILES, fileId);
+      await fetchDocuments();
+    } catch (error) {
+      console.error('Delete failed:', error);
+    }
+  };
+
+  const filteredDocs = documents.filter(doc => 
+    doc.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="space-y-6">
+      {/* Hidden file input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleUpload}
+        className="hidden"
+        accept=".csv,.xlsx,.xls,.pdf,.docx,.doc,.txt,.mpt,.dta"
+      />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white">Documents</h1>
-          <p className="text-slate-400">Reports, spreadsheets, and data files</p>
+          <p className="text-slate-400">Reports, spreadsheets, and data files ({documents.length})</p>
         </div>
         <div className="flex gap-2">
-          <button className="flex items-center gap-2 px-4 py-2 border border-slate-600 rounded-lg text-white hover:bg-slate-800">
-            <Upload className="w-4 h-4" />
-            Upload
-          </button>
-          <button className="flex items-center gap-2 px-4 py-2 rounded-lg synapse-gradient text-white font-medium hover:opacity-90">
-            <Plus className="w-4 h-4" />
-            New Document
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            className="flex items-center gap-2 px-4 py-2 border border-slate-600 rounded-lg text-white hover:bg-slate-800 disabled:opacity-50"
+          >
+            {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+            {isUploading ? 'Uploading...' : 'Upload'}
           </button>
         </div>
       </div>
