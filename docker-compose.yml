@@ -1,0 +1,231 @@
+version: "3.8"
+
+# =============================================================================
+# SYNAPSE - Research Reproducibility Platform
+# =============================================================================
+
+services:
+  # ===========================================================================
+  # REVERSE PROXY
+  # ===========================================================================
+  traefik:
+    image: traefik:v2.10
+    container_name: synapse-traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080" # Traefik dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./docker/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+    networks:
+      - synapse-network
+    restart: unless-stopped
+
+  # ===========================================================================
+  # SYNAPSE FRONTEND (Next.js)
+  # ===========================================================================
+  synapse-web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: synapse-web
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_APPWRITE_ENDPOINT=${APPWRITE_ENDPOINT}
+      - NEXT_PUBLIC_APPWRITE_PROJECT_ID=${APPWRITE_PROJECT_ID}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.synapse.rule=Host(`${DOMAIN:-localhost}`)"
+      - "traefik.http.routers.synapse.entrypoints=web"
+      - "traefik.http.services.synapse.loadbalancer.server.port=3000"
+    depends_on:
+      - appwrite
+    networks:
+      - synapse-network
+    restart: unless-stopped
+
+  # ===========================================================================
+  # APPWRITE (Backend)
+  # ===========================================================================
+  appwrite:
+    image: appwrite/appwrite:1.5
+    container_name: synapse-appwrite
+    environment:
+      - _APP_ENV=production
+      - _APP_OPENSSL_KEY_V1=${APPWRITE_SECRET_KEY:-your-secret-key}
+      - _APP_DOMAIN=${DOMAIN:-localhost}
+      - _APP_DOMAIN_TARGET=${DOMAIN:-localhost}
+      - _APP_REDIS_HOST=redis
+      - _APP_REDIS_PORT=6379
+      - _APP_DB_HOST=mariadb
+      - _APP_DB_PORT=3306
+      - _APP_DB_SCHEMA=appwrite
+      - _APP_DB_USER=appwrite
+      - _APP_DB_PASS=${APPWRITE_DB_PASSWORD:-password}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.appwrite.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/v1`)"
+      - "traefik.http.routers.appwrite.entrypoints=web"
+      - "traefik.http.services.appwrite.loadbalancer.server.port=80"
+    depends_on:
+      - mariadb
+      - redis
+    volumes:
+      - appwrite-uploads:/storage/uploads
+      - appwrite-cache:/storage/cache
+      - appwrite-config:/storage/config
+      - appwrite-certificates:/storage/certificates
+      - appwrite-functions:/storage/functions
+    networks:
+      - synapse-network
+    restart: unless-stopped
+
+  mariadb:
+    image: mariadb:10.11
+    container_name: synapse-mariadb
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MARIADB_ROOT_PASSWORD:-rootpassword}
+      - MYSQL_DATABASE=appwrite
+      - MYSQL_USER=appwrite
+      - MYSQL_PASSWORD=${APPWRITE_DB_PASSWORD:-password}
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    networks:
+      - synapse-network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: synapse-redis
+    volumes:
+      - redis-data:/data
+    networks:
+      - synapse-network
+    restart: unless-stopped
+
+  # ===========================================================================
+  # ELABFTW (Electronic Lab Notebook)
+  # ===========================================================================
+  elabftw:
+    image: elabftw/elabimg:latest
+    container_name: synapse-elabftw
+    environment:
+      - DB_HOST=elabftw-mysql
+      - DB_PORT=3306
+      - DB_NAME=elabftw
+      - DB_USER=elabftw
+      - DB_PASSWORD=${ELABFTW_DB_PASSWORD:-elabftwpass}
+      - SECRET_KEY=${ELABFTW_SECRET_KEY:-change-me}
+      - SERVER_NAME=${DOMAIN:-localhost}
+      - DISABLE_HTTPS=true
+      - ENABLE_DEVTOOLS=1
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.elabftw.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/elabftw`)"
+      - "traefik.http.routers.elabftw.entrypoints=web"
+      - "traefik.http.services.elabftw.loadbalancer.server.port=443"
+      - "traefik.http.routers.elabftw.middlewares=elabftw-strip"
+      - "traefik.http.middlewares.elabftw-strip.stripprefix.prefixes=/elabftw"
+    depends_on:
+      - elabftw-mysql
+    volumes:
+      - elabftw-uploads:/elabftw/uploads
+    networks:
+      - synapse-network
+    restart: unless-stopped
+
+  elabftw-mysql:
+    image: mysql:8.0
+    container_name: synapse-elabftw-mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=${ELABFTW_DB_ROOT_PASSWORD:-rootpass}
+      - MYSQL_DATABASE=elabftw
+      - MYSQL_USER=elabftw
+      - MYSQL_PASSWORD=${ELABFTW_DB_PASSWORD:-elabftwpass}
+    volumes:
+      - elabftw-mysql-data:/var/lib/mysql
+    networks:
+      - synapse-network
+    restart: unless-stopped
+
+  # ===========================================================================
+  # ONLYOFFICE (Document Editing)
+  # ===========================================================================
+  onlyoffice:
+    image: onlyoffice/documentserver:latest
+    container_name: synapse-onlyoffice
+    environment:
+      - JWT_ENABLED=true
+      - JWT_SECRET=${ONLYOFFICE_JWT_SECRET:-onlyofficejwt}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.onlyoffice.rule=Host(`${DOMAIN:-localhost}`) && PathPrefix(`/onlyoffice`)"
+      - "traefik.http.routers.onlyoffice.entrypoints=web"
+      - "traefik.http.services.onlyoffice.loadbalancer.server.port=80"
+      - "traefik.http.routers.onlyoffice.middlewares=onlyoffice-strip"
+      - "traefik.http.middlewares.onlyoffice-strip.stripprefix.prefixes=/onlyoffice"
+    volumes:
+      - onlyoffice-data:/var/www/onlyoffice/Data
+      - onlyoffice-logs:/var/log/onlyoffice
+    networks:
+      - synapse-network
+    restart: unless-stopped
+
+  # ===========================================================================
+  # MINIO (S3 Storage)
+  # ===========================================================================
+  minio:
+    image: minio/minio:latest
+    container_name: synapse-minio
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER:-synapse}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-synapse123}
+    ports:
+      - "9000:9000"
+      - "9001:9001" # MinIO Console
+    volumes:
+      - minio-data:/data
+    networks:
+      - synapse-network
+    restart: unless-stopped
+
+# =============================================================================
+# NETWORKS
+# =============================================================================
+networks:
+  synapse-network:
+    driver: bridge
+
+# =============================================================================
+# VOLUMES
+# =============================================================================
+volumes:
+  # Appwrite
+  appwrite-uploads:
+  appwrite-cache:
+  appwrite-config:
+  appwrite-certificates:
+  appwrite-functions:
+
+  # Databases
+  mariadb-data:
+  redis-data:
+  elabftw-mysql-data:
+
+  # eLabFTW
+  elabftw-uploads:
+
+  # ONLYOFFICE
+  onlyoffice-data:
+  onlyoffice-logs:
+
+  # MinIO
+  minio-data:
