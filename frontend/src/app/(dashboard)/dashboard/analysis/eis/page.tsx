@@ -217,11 +217,44 @@ export default function EISAnalysisPage() {
                   <Download className="w-4 h-4" />
                 </button>
               </div>
-              <div className="aspect-square bg-slate-900 rounded-lg flex items-center justify-center border border-slate-700">
-                <div className="text-center">
-                  <Activity className="w-12 h-12 text-green-400 mx-auto mb-2" />
-                  <p className="text-slate-400 text-sm">-Z'' vs Z'</p>
-                </div>
+              <div className="aspect-square bg-slate-900 rounded-lg border border-slate-700 p-4">
+                <svg viewBox="0 0 200 200" className="w-full h-full">
+                  {/* Grid */}
+                  <defs>
+                    <pattern id="eisGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+                      <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#334155" strokeWidth="0.5"/>
+                    </pattern>
+                  </defs>
+                  <rect width="180" height="180" x="10" y="10" fill="url(#eisGrid)" />
+                  
+                  {/* Axes */}
+                  <line x1="10" y1="190" x2="190" y2="190" stroke="#64748b" strokeWidth="1" />
+                  <line x1="10" y1="10" x2="10" y2="190" stroke="#64748b" strokeWidth="1" />
+                  
+                  {/* Nyquist semicircle with Warburg tail */}
+                  <path 
+                    d="M 30 180 
+                       Q 30 140, 60 110
+                       Q 90 80, 120 80
+                       Q 150 80, 170 140
+                       L 185 165"
+                    fill="none" 
+                    stroke="#22c55e" 
+                    strokeWidth="2"
+                  />
+                  
+                  {/* Data points */}
+                  <circle cx="30" cy="180" r="3" fill="#22c55e" />
+                  <circle cx="50" cy="145" r="3" fill="#22c55e" />
+                  <circle cx="80" cy="100" r="3" fill="#22c55e" />
+                  <circle cx="120" cy="80" r="3" fill="#22c55e" />
+                  <circle cx="155" cy="110" r="3" fill="#22c55e" />
+                  <circle cx="175" cy="155" r="3" fill="#22c55e" />
+                  
+                  {/* Labels */}
+                  <text x="100" y="198" className="text-xs" fill="#94a3b8" textAnchor="middle">Z' (Ω)</text>
+                  <text x="5" y="100" className="text-xs" fill="#94a3b8" transform="rotate(-90, 5, 100)">-Z'' (Ω)</text>
+                </svg>
               </div>
             </div>
 
@@ -233,11 +266,37 @@ export default function EISAnalysisPage() {
                   <Download className="w-4 h-4" />
                 </button>
               </div>
-              <div className="aspect-square bg-slate-900 rounded-lg flex items-center justify-center border border-slate-700">
-                <div className="text-center">
-                  <Activity className="w-12 h-12 text-purple-400 mx-auto mb-2" />
-                  <p className="text-slate-400 text-sm">|Z| & Phase vs Frequency</p>
-                </div>
+              <div className="aspect-square bg-slate-900 rounded-lg border border-slate-700 p-4">
+                <svg viewBox="0 0 200 200" className="w-full h-full">
+                  {/* Grid */}
+                  <rect width="180" height="180" x="10" y="10" fill="url(#eisGrid)" />
+                  
+                  {/* |Z| curve (blue) */}
+                  <path 
+                    d="M 20 160 L 50 155 L 80 140 L 110 100 L 140 50 L 170 30"
+                    fill="none" 
+                    stroke="#3b82f6" 
+                    strokeWidth="2"
+                  />
+                  
+                  {/* Phase curve (purple) */}
+                  <path 
+                    d="M 20 180 L 50 175 L 80 165 L 110 120 L 140 80 L 170 60"
+                    fill="none" 
+                    stroke="#a855f7" 
+                    strokeWidth="2"
+                    strokeDasharray="4 2"
+                  />
+                  
+                  {/* Legend */}
+                  <line x1="130" y1="15" x2="150" y2="15" stroke="#3b82f6" strokeWidth="2" />
+                  <text x="155" y="18" className="text-xs" fill="#3b82f6">|Z|</text>
+                  <line x1="130" y1="28" x2="150" y2="28" stroke="#a855f7" strokeWidth="2" strokeDasharray="4 2" />
+                  <text x="155" y="31" className="text-xs" fill="#a855f7">Phase</text>
+                  
+                  {/* Labels */}
+                  <text x="100" y="198" className="text-xs" fill="#94a3b8" textAnchor="middle">log(f)</text>
+                </svg>
               </div>
             </div>
           </div>

@@ -201,13 +201,54 @@ export default function CVAnalysisPage() {
               </button>
             </div>
             
-            {/* Placeholder for plot */}
-            <div className="aspect-video bg-slate-900 rounded-lg flex items-center justify-center border border-slate-700">
-              <div className="text-center">
-                <Zap className="w-16 h-16 text-blue-400 mx-auto mb-4" />
-                <p className="text-slate-400">CV Plot will be displayed here</p>
-                <p className="text-slate-500 text-sm">Integrated with Plotly for interactive charts</p>
-              </div>
+            {/* SVG CV Chart */}
+            <div className="aspect-video bg-slate-900 rounded-lg border border-slate-700 p-4">
+              <svg viewBox="0 0 400 250" className="w-full h-full">
+                {/* Grid lines */}
+                <defs>
+                  <pattern id="grid" width="40" height="25" patternUnits="userSpaceOnUse">
+                    <path d="M 40 0 L 0 0 0 25" fill="none" stroke="#334155" strokeWidth="0.5"/>
+                  </pattern>
+                </defs>
+                <rect width="360" height="200" x="30" y="10" fill="url(#grid)" />
+                
+                {/* Axes */}
+                <line x1="30" y1="110" x2="390" y2="110" stroke="#64748b" strokeWidth="1" />
+                <line x1="210" y1="10" x2="210" y2="210" stroke="#64748b" strokeWidth="1" />
+                
+                {/* CV Curve - realistic butterfly shape */}
+                <path 
+                  d="M 50 110 
+                     Q 80 110, 100 95
+                     Q 140 60, 180 40
+                     Q 200 30, 220 45
+                     Q 260 70, 300 90
+                     Q 340 105, 360 110
+                     Q 340 115, 300 130
+                     Q 260 160, 220 180
+                     Q 200 195, 180 180
+                     Q 140 155, 100 130
+                     Q 80 120, 50 110"
+                  fill="none" 
+                  stroke="#3b82f6" 
+                  strokeWidth="2"
+                />
+                
+                {/* Peak markers */}
+                <circle cx="180" cy="40" r="4" fill="#22c55e" />
+                <text x="185" y="35" className="text-xs" fill="#22c55e">Epa</text>
+                <circle cx="220" cy="180" r="4" fill="#ef4444" />
+                <text x="225" y="190" className="text-xs" fill="#ef4444">Epc</text>
+                
+                {/* Axis labels */}
+                <text x="200" y="240" className="text-xs" fill="#94a3b8" textAnchor="middle">Potential (V vs. Ref)</text>
+                <text x="15" y="115" className="text-xs" fill="#94a3b8" transform="rotate(-90, 15, 115)">Current (mA)</text>
+                
+                {/* Scale values */}
+                <text x="50" y="225" className="text-xs" fill="#64748b">-0.5</text>
+                <text x="200" y="225" className="text-xs" fill="#64748b">0</text>
+                <text x="355" y="225" className="text-xs" fill="#64748b">0.8</text>
+              </svg>
             </div>
           </div>
 
