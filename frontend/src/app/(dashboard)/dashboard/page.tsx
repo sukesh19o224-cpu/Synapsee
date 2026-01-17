@@ -1,6 +1,9 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { Query } from 'appwrite';
+import { databases, DATABASE_ID, COLLECTIONS } from '@/lib/appwrite';
 import { useAuth } from '@/stores/auth';
 import { 
   FlaskConical, 
@@ -10,14 +13,37 @@ import {
   Plus,
   ArrowRight,
   TrendingUp,
-  Clock
+  Clock,
+  Loader2
 } from 'lucide-react';
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const [experimentCount, setExperimentCount] = useState(0);
+  const [recentExperiments, setRecentExperiments] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await databases.listDocuments(
+          DATABASE_ID,
+          COLLECTIONS.EXPERIMENTS,
+          [Query.orderDesc('createdAt'), Query.limit(5)]
+        );
+        setExperimentCount(response.total);
+        setRecentExperiments(response.documents);
+      } catch (error) {
+        console.error('Failed to fetch stats:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
 
   const stats = [
-    { label: 'Experiments', value: '0', icon: FlaskConical, color: 'blue' },
+    { label: 'Experiments', value: experimentCount.toString(), icon: FlaskConical, color: 'blue' },
     { label: 'Data Files', value: '0', icon: FileText, color: 'green' },
     { label: 'Analyses', value: '0', icon: BarChart3, color: 'purple' },
     { label: 'Searches', value: '0', icon: Search, color: 'orange' },

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { account } from '@/lib/appwrite';
 import { useAuth } from '@/stores/auth';
 import { 
   User, 
@@ -8,13 +9,16 @@ import {
   Bell, 
   Database,
   Save,
-  Loader2
+  Loader2,
+  Check
 } from 'lucide-react';
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, checkSession } = useAuth();
   const [isSaving, setIsSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
   
   const [profile, setProfile] = useState({
     name: user?.name || '',
@@ -23,10 +27,44 @@ export default function SettingsPage() {
     role: '',
   });
 
-  const handleSave = async () => {
+  const [passwords, setPasswords] = useState({
+    current: '',
+    new: '',
+    confirm: '',
+  });
+
+  const handleSaveProfile = async () => {
     setIsSaving(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    setIsSaving(false);
+    setMessage('');
+    setError('');
+    try {
+      await account.updateName(profile.name);
+      await checkSession(); // Refresh user data
+      setMessage('Profile updated successfully!');
+    } catch (err: any) {
+      setError(err.message || 'Failed to update profile');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleUpdatePassword = async () => {
+    if (passwords.new !== passwords.confirm) {
+      setError('New passwords do not match');
+      return;
+    }
+    setIsSaving(true);
+    setMessage('');
+    setError('');
+    try {
+      await account.updatePassword(passwords.new, passwords.current);
+      setPasswords({ current: '', new: '', confirm: '' });
+      setMessage('Password updated successfully!');
+    } catch (err: any) {
+      setError(err.message || 'Failed to update password');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const tabs = [
@@ -130,7 +168,7 @@ export default function SettingsPage() {
 
               <div className="pt-4">
                 <button
-                  onClick={handleSave}
+                  onClick={handleSaveProfile}
                   disabled={isSaving}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg synapse-gradient text-white font-medium hover:opacity-90 disabled:opacity-50"
                 >
@@ -161,6 +199,8 @@ export default function SettingsPage() {
                   </label>
                   <input
                     type="password"
+                    value={passwords.current}
+                    onChange={(e) => setPasswords({ ...passwords, current: e.target.value })}
                     className="w-full px-4 py-2 bg-slate-900 border border-slate-600 rounded-lg text-white"
                   />
                 </div>
